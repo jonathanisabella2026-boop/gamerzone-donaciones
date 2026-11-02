@@ -72,3 +72,57 @@ async function grantAdFreeMonth(session) {
 
   return granted;
 }
+
+async function main() {
+  let paidSessions = 0;
+  let newBenefits = 0;
+  let duplicates = 0;
+
+  for await (const session of stripe.checkout.sessions.list({
+    payment_link: PAYMENT_LINK_ID,
+    status: "complete",
+    limit: 100,
+  })) {
+    const validPayment = session.mode === "payment" &&
+      session.payment_status === "paid" &&
+      session.amount_total === 100 &&
+      session.currency === "eur";
+
+    if (!validPayment) {
+      continue;
+    }
+
+    const uid = session.client_reference_id;
+    const validUid = typeof uid === "string" &&
+      /^[A-Za-z0-9]{20,40}$/.test(uid);
+
+    if (!validUid) {
+      console.warn("Pago sin UID válido: requiere revisión manual.");
+      continue;
+    }
+
+    paidSessions += 1;
+    const granted = await grantAdFreeMonth(session);
+
+    if (granted) {
+      newBenefits += 1;
+    } else {
+      duplicates += 1;
+    }
+  }
+
+  console.log(JSON.stringify({
+    paidSessions,
+    newBenefits,
+    duplicates,
+  }));
+}
+
+main()
+  .catch((error) => {
+    console.error("Error sincronizando donaciones:", error.message);
+    process.exitCode = 1;
+  })
+  .finally(async () => {
+    await admin.app().delete();
+  });
