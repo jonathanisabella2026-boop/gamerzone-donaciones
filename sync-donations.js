@@ -1,7 +1,7 @@
 ﻿const Stripe = require("stripe");
 const admin = require("firebase-admin");
 
-const PAYMENT_LINK_ID = "plink_1UXIbNG4LUahiyOMyENl9TEu";
+const PAYMENT_LINK_ID = "";
 const AD_FREE_MONTH_MS = 30 * 24 * 60 * 60 * 1000;
 
 function requireEnv(name) {
@@ -79,7 +79,7 @@ async function main() {
   let duplicates = 0;
 
   for await (const session of stripe.checkout.sessions.list({
-    payment_link: PAYMENT_LINK_ID,
+    ...(PAYMENT_LINK_ID ? { payment_link: PAYMENT_LINK_ID } : {}),
     status: "complete",
     limit: 100,
   })) {
@@ -126,3 +126,4 @@ main()
   .finally(async () => {
     await admin.app().delete();
   });
+
